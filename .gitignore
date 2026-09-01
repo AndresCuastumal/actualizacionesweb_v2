@@ -1,0 +1,35 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Configuración de PHP
+.idea/
+.vscode/
+*.sublime-*
+
+# Archivos de log
+*.log
+error_log
+
+# Archivos de sesión
+sessions/
+tmp/
+
+# Archivos de base de datos
+*.sqlite
+*.db
+
+# Archivos de configuración con datos sensibles
+.env
+config/database.php
+config/config.php
+
+# Cache
+cache/
+vendor/
+node_modules/
+
+# IDEs
+*.swp
+*.swo
+*~
