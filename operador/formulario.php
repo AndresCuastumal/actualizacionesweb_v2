@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $modo === 'crear') {
             ]);
 
             $doc = $datos['doc'];
-            $boton = "<br><br><a href='http://localhost:8011/consultasweb/ppna/reporte.php?doc={$doc}' target='_blank' class='btn btn-primary'>📄 Imprimir Reporte</a>";
+            $boton = "<br><br><a href='http://appsalud.pasto.gov.co:8011/consultasweb/ppna/reporte.php?doc={$doc}' target='_blank' class='btn btn-primary'>📄 Imprimir Reporte</a>";
 
             flash('success', 
                 "Registro guardado exitosamente en PPNA. Documento: {$datos['td']} {$doc}" . $boton,
