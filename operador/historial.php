@@ -3,7 +3,7 @@ require_once '../config/database.php';
 require_once '../includes/functions.php';
 requiereOperador();
 
-$db = getDB();
+$db = getDBConsultas();
 
 // Paginación
 $pagina = max(1, (int)($_GET['pagina'] ?? 1));
@@ -13,10 +13,10 @@ $offset = ($pagina - 1) * $porPagina;
 // Búsqueda
 $busqueda = trim($_GET['busqueda'] ?? '');
 $params = [$_SESSION['usuario_id']];
-$where = "WHERE registrado_por = ?";
+$where = "WHERE USUARIO_REGISTRO = ?";
 
 if (!empty($busqueda)) {
-    $where .= " AND (doc LIKE ? OR nom1 LIKE ? OR ape1 LIKE ?)";
+    $where .= " AND (DOC LIKE ? OR NOM1 LIKE ? OR APE1 LIKE ?)";
     $like = '%' . $busqueda . '%';
     $params[] = $like;
     $params[] = $like;
@@ -24,16 +24,27 @@ if (!empty($busqueda)) {
 }
 
 // Total registros
-$stmt = $db->prepare("SELECT COUNT(*) FROM registros $where");
+$stmt = $db->prepare("SELECT COUNT(*) FROM ppna $where");
 $stmt->execute($params);
 $total = $stmt->fetchColumn();
-$totalPaginas = ceil($total / $porPagina);
+$totalPaginas = (int) ceil($total / $porPagina);
 
-// Registros de la página actual
+// Registros de la página actual (con alias para que el HTML no cambie)
 $stmt = $db->prepare("
-    SELECT * FROM registros 
-    $where 
-    ORDER BY fecha_registro DESC 
+    SELECT id,
+           TD           AS td,
+           DOC          AS doc,
+           NOM1         AS nom1,
+           NOM2         AS nom2,
+           APE1         AS ape1,
+           APE2         AS ape2,
+           SEXO         AS sexo,
+           FECHANACE    AS fechanace,
+           NIVEL_SISBEN AS nivel_sisben,
+           FECREPORTE   AS fecha_registro
+    FROM ppna
+    $where
+    ORDER BY FECREPORTE DESC, id DESC
     LIMIT ? OFFSET ?
 ");
 $params[] = $porPagina;
@@ -102,6 +113,7 @@ include '../includes/header.php';
                         <th>Fecha Nac.</th>
                         <th>Nivel SISBEN</th>
                         <th>Fecha Registro</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -114,6 +126,13 @@ include '../includes/header.php';
                         <td><?php echo date('d/m/Y', strtotime($r['fechanace'])); ?></td>
                         <td><?php echo e($r['nivel_sisben'] ?: '-'); ?></td>
                         <td><?php echo date('d/m/Y H:i', strtotime($r['fecha_registro'])); ?></td>
+                        <td>
+                            <a href="http://appsalud.pasto.gov.co:8011/consultasweb/ppna/reporte.php?doc=<?php echo urlencode($r['doc']); ?>"
+                            target="_blank"
+                            class="btn btn-sm btn-primary">
+                                📄 Imprimir
+                            </a>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($registros)): ?>

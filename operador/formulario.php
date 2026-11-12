@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $modo === 'crear') {
 
 // Contar registros del operador (desde la tabla ppna en consultasweb)
 try {
-    $totalMisRegistros = $dbConsultas->prepare("SELECT COUNT(*) FROM ppna WHERE registrado_por = ?");
+    $totalMisRegistros = $dbConsultas->prepare("SELECT COUNT(*) FROM ppna WHERE USUARIO_REGISTRO = ?");
     $totalMisRegistros->execute([$_SESSION['usuario_id']]);
     $misRegistros = $totalMisRegistros->fetchColumn();
 } catch (PDOException $e) {
