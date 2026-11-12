@@ -25,9 +25,28 @@ if ($verId && $_SESSION['usuario_rol'] === 'administrador') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $modo === 'crear') {
     validarCsrf();
 
+    $td = strtoupper(trim($_POST['td'] ?? ''));
+    $docPost = trim($_POST['doc'] ?? '');
+
+    // Si es SD, generamos consecutivo en el servidor (más seguro)
+    if ($td === 'SD') {
+        try {
+            // Opción A: consecutivo basado en el último registro SD
+            $stmt = $dbConsultas->query("SELECT DOC FROM ppna WHERE TD = 'SD' ORDER BY ID DESC LIMIT 1");
+            $ultimo = $stmt->fetchColumn();
+            $numero = 1;
+            if ($ultimo && preg_match('/SD-(\d+)/', $ultimo, $m)) {
+                $numero = (int)$m[1] + 1;
+            }
+            $docPost = 'SD-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+        } catch (PDOException $e) {
+            // Fallback: usar timestamp para no bloquear el registro
+            $docPost = 'SD-' . date('YmdHis');
+    }
+}
     $datos = [
-        'td' => strtoupper(trim($_POST['td'] ?? '')),
-        'doc' => trim($_POST['doc'] ?? ''),
+        'td' => $td,
+        'doc' => $docPost,
         'ape1' => strtoupper(trim($_POST['ape1'] ?? '')),
         'ape2' => strtoupper(trim($_POST['ape2'] ?? '')),
         'nom1' => strtoupper(trim($_POST['nom1'] ?? '')),
@@ -50,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $modo === 'crear') {
     // Validaciones básicas
     $errores = [];
     if (empty($datos['td'])) $errores[] = 'Tipo de documento es obligatorio';
-    if (empty($datos['doc'])) $errores[] = 'Número de documento es obligatorio';
+    if ($datos['td'] !== 'SD' && empty($datos['doc'])) $errores[] = 'Número de documento es obligatorio';
     if (empty($datos['ape1'])) $errores[] = 'Primer apellido es obligatorio';
     if (empty($datos['nom1'])) $errores[] = 'Primer nombre es obligatorio';
     if (empty($datos['fechanace'])) $errores[] = 'Fecha de nacimiento es obligatoria';
@@ -76,6 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $modo === 'crear') {
             ]);
 
             $doc = $datos['doc'];
+            $boton = '';
+            if($datos['td'] !== 'SD' && !empty($doc)) {
+                $boton = "<br><br><a href='http://appsalud.pasto.gov.co:8011/consultasweb/ppna/reporte.php?doc={$doc}' target='_blank' class='btn btn-primary'>📄 Imprimir Reporte</a>";
+            }
             $boton = "<br><br><a href='http://appsalud.pasto.gov.co:8011/consultasweb/ppna/reporte.php?doc={$doc}' target='_blank' class='btn btn-primary'>📄 Imprimir Reporte</a>";
 
             flash('success', 
@@ -165,7 +188,7 @@ include '../includes/header.php';
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label">TD (Tipo Documento) *</label>
-                            <select class="form-select" name="td" required <?php echo $modo === 'ver' ? 'disabled' : ''; ?>>
+                            <select class="form-select" name="td" id="td" required <?php echo $modo === 'ver' ? 'disabled' : ''; ?>>
                                 <option value="">Seleccione...</option>
                                 <option value="CC" <?php echo ($registro && $registro['td'] === 'CC') ? 'selected' : ''; ?>>CC - Cédula de Ciudadanía</option>
                                 <option value="CE" <?php echo ($registro && $registro['td'] === 'CE') ? 'selected' : ''; ?>>CE - Cédula de Extranjería</option>
@@ -174,13 +197,14 @@ include '../includes/header.php';
                                 <option value="TI" <?php echo ($registro && $registro['td'] === 'TI') ? 'selected' : ''; ?>>TI - Tarjeta de Identidad</option>
                                 <option value="PEP" <?php echo ($registro && $registro['td'] === 'PEP') ? 'selected' : ''; ?>>PEP - Permiso Especial</option>
                                 <option value="PPT" <?php echo ($registro && $registro['td'] === 'PPT') ? 'selected' : ''; ?>>PPT - Permiso Protección Temporal</option>
+                                <option value="SD" <?php echo ($registro && $registro['td'] === 'SD') ? 'selected' : ''; ?>>Sin Documento</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">DOC (Número) *</label>
-                            <input type="text" class="form-control" name="doc" required 
-                                   value="<?php echo $registro ? e($registro['doc']) : ''; ?>" 
-                                   <?php echo $modo === 'ver' ? 'readonly' : ''; ?>>
+                            <input type="text" class="form-control" name="doc" id="doc" required 
+                                value="<?php echo $registro ? e($registro['doc']) : ''; ?>" 
+                                <?php echo $modo === 'ver' ? 'readonly' : ''; ?>>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Ficha</label>
@@ -317,5 +341,38 @@ include '../includes/header.php';
 <div class="footer-app">
     Sistema de Registro PPNA - Urgencias © <?php echo date('Y'); ?> - Alcaldía de Pasto | Secretaría de Salud Municipal
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tdSelect = document.getElementById('td');
+    const docInput = document.getElementById('doc');
 
+    <?php if ($modo === 'ver'): ?>
+    return;
+    <?php endif; ?>
+
+    function toggleDocField() {
+        if (tdSelect.value === 'SD') {
+            // Bloquear pero mantener el valor enviable
+            docInput.readOnly = true;
+            docInput.required = false;
+            docInput.placeholder = 'Se asignará consecutivo automático';
+            // Valor provisional visual (el backend lo reemplaza)
+            if (!docInput.value || !docInput.value.startsWith('SD-')) {
+                docInput.value = 'SD-______';
+            }
+        } else {
+            docInput.readOnly = false;
+            docInput.required = true;
+            docInput.placeholder = '';
+            // Limpiar si venía de SD
+            if (docInput.value.startsWith('SD-')) {
+                docInput.value = '';
+            }
+        }
+    }
+
+    tdSelect.addEventListener('change', toggleDocField);
+    toggleDocField();
+});
+</script>
 <?php include '../includes/footer.php'; ?>
