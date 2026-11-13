@@ -31,8 +31,7 @@ $totalPaginas = (int) ceil($total / $porPagina);
 
 // Registros de la página actual (con alias para que el HTML no cambie)
 $stmt = $db->prepare("
-    SELECT id,
-           TD           AS td,
+    SELECT TD           AS td,
            DOC          AS doc,
            NOM1         AS nom1,
            NOM2         AS nom2,
@@ -44,7 +43,7 @@ $stmt = $db->prepare("
            FECREPORTE   AS fecha_registro
     FROM ppna
     $where
-    ORDER BY FECREPORTE DESC, id DESC
+    ORDER BY FECREPORTE DESC
     LIMIT ? OFFSET ?
 ");
 $params[] = $porPagina;
@@ -106,7 +105,6 @@ include '../includes/header.php';
             <table class="table table-custom table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Documento</th>
                         <th>Nombre Completo</th>
                         <th>Sexo</th>
@@ -119,7 +117,6 @@ include '../includes/header.php';
                 <tbody>
                     <?php foreach ($registros as $r): ?>
                     <tr>
-                        <td><?php echo $r['id']; ?></td>
                         <td><strong><?php echo e($r['td'] . ' ' . $r['doc']); ?></strong></td>
                         <td><?php echo e($r['nom1'] . ' ' . $r['nom2'] . ' ' . $r['ape1'] . ' ' . $r['ape2']); ?></td>
                         <td><?php echo $r['sexo'] === 'M' ? '♂️ Masculino' : '♀️ Femenino'; ?></td>
